@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#B3121B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SalesData">
+<title>SalesData</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  :root{
+    --brand:#B3121B; --brand-dark:#7E0C12; --ink:#1A1A1A; --muted:#6B6B6B;
+    --bg:#F4F2EF; --card:#FFFFFF; --line:#E3DFDA;
+    --green:#1E9E4A; --orange:#E07B00; --red:#D0212B;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+       background:var(--bg);color:var(--ink);font-size:17px;line-height:1.4}
+  .wrap{max-width:480px;margin:0 auto;padding:0 16px calc(24px + env(safe-area-inset-bottom))}
+  header{background:var(--brand);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 14px}
+  .hdr{max-width:480px;margin:0 auto;display:flex;align-items:center;gap:12px}
+  .logo{height:58px;width:auto;max-width:90px;object-fit:contain;background:#fff;border-radius:12px;padding:3px 5px}
+  .hero{display:block;width:72%;max-width:260px;margin:2px auto 10px}
+  .logo-fallback{display:none;font-weight:900;letter-spacing:.5px;line-height:1;font-size:14px;
+       background:#fff;color:var(--brand);border-radius:10px;padding:7px 9px;text-align:center}
+  .who{flex:1;min-width:0}
+  .who .name{font-weight:700;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who .user{font-size:13px;opacity:.85}
+  .hbtns{display:flex;gap:6px}
+  .chip{border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;border-radius:999px;
+        padding:6px 10px;font-size:13px;font-weight:600}
+  .card{background:var(--card);border-radius:var(--radius);padding:18px;margin-top:14px;border:1px solid var(--line)}
+  h1{font-size:22px;margin:4px 0 2px}
+  .sub{color:var(--muted);font-size:14px;margin:0}
+  label{display:block;font-weight:700;margin:14px 0 6px}
+  input{width:100%;font-size:22px;padding:14px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink)}
+  input:focus{outline:none;border-color:var(--brand)}
+  input.big{font-size:40px;font-weight:800;text-align:center;letter-spacing:1px}
+  input.pin{letter-spacing:12px;text-align:center;font-weight:800}
+  .hint{font-size:13px;color:var(--muted);margin-top:6px}
+  .err{color:var(--red);font-size:14px;font-weight:600;margin-top:8px;min-height:1em}
+  .btn{display:block;width:100%;border:0;border-radius:14px;padding:17px;font-size:19px;font-weight:800;
+       background:var(--brand);color:#fff;margin-top:16px}
+  .btn:active{background:var(--brand-dark)}
+  .btn:disabled{background:#C9C4BE;color:#fff}
+  .btn.ghost{background:#fff;color:var(--ink);border:2px solid var(--line)}
+  .btn.green{background:var(--green)}
+  .row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .row:last-child{border-bottom:0}
+  .row .k{color:var(--muted)} .row .v{font-weight:700;text-align:right;word-break:break-word}
+  /* GPS */
+  .gps{display:flex;gap:12px;align-items:center}
+  .dot{width:22px;height:22px;border-radius:50%;flex:none;background:#BBB;box-shadow:0 0 0 5px rgba(0,0,0,.06)}
+  .dot.green{background:var(--green);box-shadow:0 0 0 5px rgba(30,158,74,.18)}
+  .dot.orange{background:var(--orange);box-shadow:0 0 0 5px rgba(224,123,0,.18)}
+  .dot.red{background:var(--red);box-shadow:0 0 0 5px rgba(208,33,43,.18)}
+  .dot.wait{animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  .gps .t{font-weight:800}
+  .gps .d{font-size:13px;color:var(--muted)}
+  .legend{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:13px;margin-top:12px;
+          padding-top:12px;border-top:1px dashed var(--line);align-items:center}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:50%}
+  .big-num{font-size:46px;font-weight:900;text-align:center;color:var(--brand);margin:6px 0}
+  .center{text-align:center}
+  .tick{width:84px;height:84px;border-radius:50%;background:var(--green);color:#fff;font-size:50px;
+        display:flex;align-items:center;justify-content:center;margin:10px auto}
+  .tick.amber{background:var(--orange)}
+  .banner{background:#FFF4E0;border:1px solid #F3C98A;color:#7A4A00;border-radius:12px;padding:10px 12px;
+          font-size:14px;margin-top:14px;display:none}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:9}
+  .modal .box{background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
+  .hidden{display:none!important}
+  .foot{font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <img class="logo" src="logo.png" alt="Super Horse" onerror="this.style.display='none';document.getElementById('logoFb').style.display='block'">
+    <div class="logo-fallback" id="logoFb">SUPER<br>HORSE</div>
+    <div class="who">
+      <div class="name" id="hName">SalesData</div>
+      <div class="user" id="hUser" data-i="appTitle"></div>
+    </div>
+    <div class="hbtns">
+      <button class="chip" id="langBtn">EN</button>
+      <button class="chip hidden" id="logoutBtn" data-i="logout"></button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- LOGIN -->
+  <section id="vLogin" class="hidden">
+    <div class="card">
+      <img class="hero" src="logo.png" alt="Super Horse Classic &amp; Pink" onerror="this.remove()">
+      <h1 data-i="loginTitle"></h1>
+      <p class="sub" data-i="loginSub"></p>
+      <label for="uName" data-i="username"></label>
+      <input id="uName" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <label for="uPin" data-i="pin"></label>
+      <input id="uPin" class="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="current-password">
+      <div class="err" id="loginErr"></div>
+      <button class="btn" id="loginBtn" data-i="loginBtn"></button>
+    </div>
+  </section>
+
+  <!-- ENTRY -->
+  <section id="vEntry" class="hidden">
+    <div class="banner" id="queueBanner"></div>
+
+    <div class="card">
+      <div class="gps">
+        <div class="dot wait" id="gDot"></div>
+        <div>
+          <div class="t" id="gTitle"></div>
+          <div class="d" id="gDesc"></div>
+        </div>
+      </div>
+      <div class="legend">
+        <i style="background:var(--green)"></i><span data-i="lgGreen"></span>
+        <i style="background:var(--orange)"></i><span data-i="lgOrange"></span>
+        <i style="background:var(--red)"></i><span data-i="lgRed"></span>
+      </div>
+      <p class="hint" data-i="gpsWhy"></p>
+    </div>
+
+    <div class="card">
+      <label for="boxes" style="margin-top:0" data-i="boxesLabel"></label>
+      <input id="boxes" class="big" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="0">
+      <div class="hint" data-i="boxesHint"></div>
+      <div class="err" id="boxErr"></div>
+      <button class="btn" id="confirmBtn" disabled data-i="confirm"></button>
+      <div class="err center" id="confirmWhy" style="color:var(--muted);font-weight:500"></div>
+    </div>
+  </section>
+
+  <!-- REVIEW -->
+  <section id="vReview" class="hidden">
+    <div class="card">
+      <h1 data-i="reviewTitle"></h1>
+      <p class="sub" data-i="reviewSub"></p>
+      <div class="big-num" id="rBoxes"></div>
+      <div class="center sub" data-i="boxesUnit"></div>
+      <div style="margin-top:14px">
+        <div class="row"><span class="k" data-i="rEmployee"></span><span class="v" id="rEmp"></span></div>
+        <div class="row"><span class="k" data-i="rTime"></span><span class="v" id="rTime"></span></div>
+        <div class="row"><span class="k" data-i="rGps"></span><span class="v" id="rGps"></span></div>
+        <div class="row"><span class="k" data-i="rAcc"></span><span class="v" id="rAcc"></span></div>
+      </div>
+      <button class="btn green" id="submitBtn" data-i="submit"></button>
+      <button class="btn ghost" id="backBtn" data-i="back"></button>
+    </div>
+  </section>
+
+  <!-- DONE -->
+  <section id="vDone" class="hidden">
+    <div class="card center">
+      <div class="tick" id="dTick">✓</div>
+      <h1 id="dTitle"></h1>
+      <p class="sub" id="dSub"></p>
+      <div class="big-num" id="dBoxes"></div>
+      <button class="btn" id="newBtn" data-i="newEntry"></button>
+    </div>
+  </section>
+
+  <div class="foot">SalesData · v1.2</div>
+</div>
+
+<!-- Large-quantity double check -->
+<div class="modal" id="bigModal">
+  <div class="box center">
+    <h1 data-i="bigTitle"></h1>
+    <div class="big-num" id="bigNum"></div>
+    <p class="sub" data-i="bigSub"></p>
+    <button class="btn green" id="bigYes" data-i="bigYes"></button>
+    <button class="btn ghost" id="bigNo" data-i="bigNo"></button>
+  </div>
+</div>
+
+<script>
+/* ================== CONFIG ================== */
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const MIN_BOXES = 1, MAX_BOXES = 2400, BIG_QTY = 500;
+const GREEN_M = 20, ORANGE_M = 50;      // accuracy bands (metres)
+const ORANGE_AFTER_S = 20;              // orange accepted after this many seconds
+const TZ_OFFSET_H = 7;                  // Vietnam time, for daily logout
+/* ============================================ */
+
+const T = {
+  vi:{
+    appTitle:'Ghi nhận giao hàng', logout:'Thoát',
+    loginTitle:'Đăng nhập', loginSub:'Nhập tên đăng nhập và mã PIN 4 số của bạn.',
+    username:'Tên đăng nhập', pin:'Mã PIN (4 số)', loginBtn:'Đăng nhập',
+    errLogin:'Sai tên đăng nhập hoặc mã PIN.', errLocked:'Nhập sai quá nhiều lần. Thử lại sau 15 phút.',
+    errNet:'Không có kết nối mạng. Cần mạng để đăng nhập.', errFill:'Vui lòng nhập tên đăng nhập và đủ 4 số PIN.',
+    errServer:'Lỗi máy chủ. Thử lại sau.',
+    gpsWait:'Đang tìm vị trí GPS…', gpsGreen:'GPS tốt', gpsOrange:'GPS trung bình', gpsRed:'GPS yếu',
+    gpsAcc:'Độ chính xác: ±{m} m',
+    gpsDenied:'Chưa cho phép truy cập vị trí. Hãy bật Vị trí (Location) cho trình duyệt rồi tải lại trang.',
+    gpsNone:'Thiết bị không hỗ trợ GPS.',
+    lgGreen:'Xanh: tốt (±20 m trở xuống) — gửi được',
+    lgOrange:'Cam: trung bình (±21–50 m) — gửi được sau 20 giây chờ',
+    lgRed:'Đỏ: yếu (trên ±50 m) — không gửi được',
+    gpsWhy:'Màu sắc cho biết độ chính xác của vị trí GPS, không phải tín hiệu điện thoại. Để GPS tốt hơn: đứng ngoài trời, tránh mái che và nhà cao tầng, chờ vài giây.',
+    boxesLabel:'Số thùng đã giao', boxesHint:'Từ 1 đến 2.400 thùng', boxesUnit:'thùng',
+    errBoxes:'Nhập số từ 1 đến 2.400.',
+    confirm:'Xác nhận',
+    whyGps:'Chờ GPS chuyển sang màu xanh…', whyOrange:'GPS cam — có thể xác nhận sau {s} giây nữa, hoặc chờ màu xanh.',
+    whyRed:'GPS đỏ — chưa thể gửi. Hãy ra chỗ thoáng.', whyBoxes:'Nhập số thùng.',
+    reviewTitle:'Kiểm tra lại', reviewSub:'Kiểm tra thông tin trước khi gửi.',
+    rEmployee:'Nhân viên', rTime:'Thời gian', rGps:'Vị trí', rAcc:'Độ chính xác GPS',
+    submit:'Gửi', back:'Quay lại sửa',
+    bigTitle:'Số lượng lớn — bạn chắc chắn?', bigSub:'Kiểm tra lại số thùng. Bấm "Đúng" để tiếp tục.',
+    bigYes:'Đúng, tiếp tục', bigNo:'Không, sửa lại',
+    doneTitle:'Gửi thành công', doneSub:'Dữ liệu đã được lưu.',
+    queuedTitle:'Đã lưu trên máy', queuedSub:'Chưa có mạng. Dữ liệu sẽ tự động gửi khi có mạng — không cần nhập lại.',
+    newEntry:'Ghi nhận mới',
+    queueN:'{n} mục chưa gửi — sẽ tự gửi khi có mạng.',
+    expired:'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  },
+  en:{
+    appTitle:'Drop-off record', logout:'Log out',
+    loginTitle:'Log in', loginSub:'Enter your username and 4-digit PIN.',
+    username:'Username', pin:'PIN (4 digits)', loginBtn:'Log in',
+    errLogin:'Wrong username or PIN.', errLocked:'Too many wrong attempts. Try again in 15 minutes.',
+    errNet:'No internet connection. Login needs a connection.', errFill:'Enter your username and all 4 PIN digits.',
+    errServer:'Server error. Please try again later.',
+    gpsWait:'Finding GPS position…', gpsGreen:'GPS good', gpsOrange:'GPS fair', gpsRed:'GPS poor',
+    gpsAcc:'Accuracy: ±{m} m',
+    gpsDenied:'Location access is blocked. Turn on Location for your browser, then reload the page.',
+    gpsNone:'This device does not support GPS.',
+    lgGreen:'Green: good (±20 m or better) — can submit',
+    lgOrange:'Orange: fair (±21–50 m) — can submit after 20 s wait',
+    lgRed:'Red: poor (worse than ±50 m) — cannot submit',
+    gpsWhy:'The colour shows how accurate the GPS position is, not your phone signal. For better GPS: stand outdoors, away from roofs and tall buildings, and wait a few seconds.',
+    boxesLabel:'Boxes dropped off', boxesHint:'1 to 2,400 boxes', boxesUnit:'boxes',
+    errBoxes:'Enter a number from 1 to 2,400.',
+    confirm:'Confirm',
+    whyGps:'Waiting for GPS to turn green…', whyOrange:'GPS orange — you can confirm in {s} s, or wait for green.',
+    whyRed:'GPS red — cannot submit yet. Move to an open area.', whyBoxes:'Enter the number of boxes.',
+    reviewTitle:'Check again', reviewSub:'Check the details before sending.',
+    rEmployee:'Employee', rTime:'Time', rGps:'Location', rAcc:'GPS accuracy',
+    submit:'Submit', back:'Go back and edit',
+    bigTitle:'Large quantity — are you sure?', bigSub:'Check the number of boxes. Tap "Yes" to continue.',
+    bigYes:'Yes, continue', bigNo:'No, edit',
+    doneTitle:'Sent successfully', doneSub:'The record has been saved.',
+    queuedTitle:'Saved on phone', queuedSub:'No internet. It will send automatically when connected — no need to re-enter.',
+    newEntry:'New entry',
+    queueN:'{n} record(s) not sent yet — will send automatically when online.',
+    expired:'Your session has expired. Please log in again.',
+  }
+};
+
+/* ---------- storage helpers (safe) ---------- */
+const S = {
+  get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  del(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+const $ = id => document.getElementById(id);
+
+let lang = S.get('sh_lang','vi');
+let session = S.get('sh_session',null);   // {token,username,name,expires}
+let gps = {watch:null, best:null, start:0, status:'wait', timer:null};
+let pending = null;                        // record being reviewed
+
+function t(k,vars){let s=(T[lang][k]||k);if(vars)for(const x in vars)s=s.replace('{'+x+'}',vars[x]);return s}
+function applyLang(){
+  document.documentElement.lang=lang;
+  document.querySelectorAll('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));
+  $('langBtn').textContent = lang==='vi'?'EN':'VI';
+  renderHeader(); renderGps(); updateConfirm(); renderQueue();
+}
+$('langBtn').onclick=()=>{lang=lang==='vi'?'en':'vi';S.set('sh_lang',lang);applyLang()};
+
+/* ---------- views ---------- */
+function show(v){
+  ['vLogin','vEntry','vReview','vDone'].forEach(x=>$(x).classList.toggle('hidden',x!==v));
+  if(v==='vEntry') startGps(); else if(v!=='vReview') stopGps();
+  window.scrollTo(0,0);
+}
+
+/* ---------- session (daily, midnight Vietnam time) ---------- */
+function nextMidnightVN(){
+  const off=TZ_OFFSET_H*3600e3, now=Date.now();
+  return Math.floor((now+off)/86400e3)*86400e3+86400e3-off;
+}
+function sessionValid(){return session && session.token && Date.now()<session.expires}
+function renderHeader(){
+  if(sessionValid()){
+    $('hName').textContent=session.name||session.username;
+    $('hUser').textContent='@'+session.username;
+    $('logoutBtn').classList.remove('hidden');
+  }else{
+    $('hName').textContent='SalesData';
+    $('hUser').textContent=t('appTitle');
+    $('logoutBtn').classList.add('hidden');
+  }
+}
+$('logoutBtn').onclick=()=>{session=null;S.del('sh_session');renderHeader();show('vLogin')};
+
+/* ---------- API ---------- */
+async function api(payload){
+  const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(payload)}); // text/plain: no CORS preflight
+  if(!r.ok) throw new Error('http '+r.status);
+  return r.json();
+}
+
+/* ---------- login ---------- */
+$('uPin').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,4)});
+$('uPin').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click()});
+$('loginBtn').onclick=async()=>{
+  const u=$('uName').value.trim().toLowerCase(), p=$('uPin').value;
+  $('loginErr').textContent='';
+  if(!u||!/^\d{4}$/.test(p)){$('loginErr').textContent=t('errFill');return}
+  if(!navigator.onLine){$('loginErr').textContent=t('errNet');return}
+  const b=$('loginBtn'); b.disabled=true;
+  try{
+    const res=await api({action:'login',username:u,pin:p});
+    if(res.ok){
+      session={token:res.token,username:res.username,name:res.name,expires:nextMidnightVN()};
+      S.set('sh_session',session); S.set('sh_lastUser',u);
+      $('uPin').value=''; renderHeader(); show('vEntry'); flushQueue();
+    }else{
+      $('loginErr').textContent = res.error==='locked'?t('errLocked'):t('errLogin');
+    }
+  }catch(e){$('loginErr').textContent=navigator.onLine?t('errServer'):t('errNet')}
+  b.disabled=false;
+};
+
+/* ---------- GPS (runs only while entry screen is open & visible) ---------- */
+function startGps(){
+  if(gps.watch!==null) return;
+  if(!('geolocation' in navigator)){gps.status='none';renderGps();return}
+  gps.best=null; gps.start=Date.now(); gps.status='wait';
+  gps.watch=navigator.geolocation.watchPosition(onPos,onPosErr,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+  clearInterval(gps.timer); gps.timer=setInterval(()=>{renderGps();updateConfirm()},1000);
+  renderGps();
+}
+function stopGps(){
+  if(gps.watch!==null){navigator.geolocation.clearWatch(gps.watch);gps.watch=null}
+  clearInterval(gps.timer); gps.timer=null;
+}
+function onPos(p){
+  const c=p.coords, fix={lat:c.latitude,lng:c.longitude,acc:Math.round(c.accuracy),at:Date.now()};
+  // keep the most accurate recent fix (fresh within 30 s)
+  if(!gps.best || fix.acc<=gps.best.acc || Date.now()-gps.best.at>30000) gps.best=fix;
+  renderGps(); updateConfirm();
+}
+function onPosErr(e){
+  if(e.code===1){gps.status='denied';renderGps();updateConfirm()}
+}
+function band(acc){return acc<=GREEN_M?'green':acc<=ORANGE_M?'orange':'red'}
+function renderGps(){
+  const dot=$('gDot'), ti=$('gTitle'), de=$('gDesc');
+  dot.className='dot';
+  if(gps.status==='denied'){dot.classList.add('red');ti.textContent=t('gpsRed');de.textContent=t('gpsDenied');return}
+  if(gps.status==='none'){dot.classList.add('red');ti.textContent=t('gpsRed');de.textContent=t('gpsNone');return}
+  if(!gps.best){dot.classList.add('wait');ti.textContent=t('gpsWait');de.textContent='';return}
+  const b=band(gps.best.acc);
+  dot.classList.add(b);
+  ti.textContent=t(b==='green'?'gpsGreen':b==='orange'?'gpsOrange':'gpsRed');
+  de.textContent=t('gpsAcc',{m:gps.best.acc})+' · '+gps.best.lat.toFixed(6)+', '+gps.best.lng.toFixed(6);
+}
+function gpsOk(){
+  if(!gps.best) return {ok:false,why:t('whyGps')};
+  const b=band(gps.best.acc);
+  if(b==='green') return {ok:true};
+  if(b==='red') return {ok:false,why:t('whyRed')};
+  const left=ORANGE_AFTER_S-Math.floor((Date.now()-gps.start)/1000);
+  return left<=0?{ok:true}:{ok:false,why:t('whyOrange',{s:left})};
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) stopGps();
+  else if(!$('vEntry').classList.contains('hidden')) startGps();
+});
+
+/* ---------- boxes ---------- */
+function boxVal(){const v=$('boxes').value;return /^\d+$/.test(v)?parseInt(v,10):NaN}
+function boxesOk(){const n=boxVal();return n>=MIN_BOXES&&n<=MAX_BOXES}
+$('boxes').addEventListener('input',e=>{
+  e.target.value=e.target.value.replace(/\D/g,'').replace(/^0+/,'').slice(0,4);
+  $('boxErr').textContent = e.target.value && !boxesOk() ? t('errBoxes') : '';
+  updateConfirm();
+});
+function updateConfirm(){
+  if($('vEntry').classList.contains('hidden')) return;
+  const g=gpsOk(), b=boxesOk();
+  $('confirmBtn').disabled=!(g.ok&&b);
+  $('confirmWhy').textContent = !g.ok ? g.why : (!b ? t('whyBoxes') : '');
+}
+
+/* ---------- confirm #1 → review ---------- */
+$('confirmBtn').onclick=()=>{
+  if(!sessionValid()){alert(t('expired'));show('vLogin');return}
+  const g=gpsOk(); if(!g.ok||!boxesOk()) return;
+  const n=boxVal();
+  const go=()=>{
+    const f=gps.best;
+    pending={id:uid(),boxes:n,lat:f.lat,lng:f.lng,acc:f.acc,gpsStatus:band(f.acc),deviceTime:new Date().toISOString()};
+    $('rBoxes').textContent=n.toLocaleString(lang==='vi'?'vi-VN':'en-US');
+    $('rEmp').textContent=(session.name||'')+' (@'+session.username+')';
+    $('rTime').textContent=fmtTime(new Date(pending.deviceTime));
+    $('rGps').textContent=f.lat.toFixed(6)+', '+f.lng.toFixed(6);
+    $('rAcc').innerHTML='<span class="dot '+pending.gpsStatus+'" style="display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:6px;box-shadow:none"></span>±'+f.acc+' m';
+    show('vReview');
+  };
+  if(n>BIG_QTY){
+    $('bigNum').textContent=n.toLocaleString(lang==='vi'?'vi-VN':'en-US');
+    $('bigModal').style.display='flex';
+    $('bigYes').onclick=()=>{$('bigModal').style.display='none';go()};
+    $('bigNo').onclick=()=>{$('bigModal').style.display='none';$('boxes').focus()};
+  } else go();
+};
+$('backBtn').onclick=()=>{pending=null;show('vEntry')};
+
+/* ---------- confirm #2 → submit ---------- */
+$('submitBtn').onclick=async()=>{
+  if(!pending) return;
+  const rec={...pending,token:session.token,username:session.username,name:session.name};
+  const b=$('submitBtn'); b.disabled=true;
+  let sent=false;
+  if(navigator.onLine){
+    try{
+      const res=await api({action:'submit',...rec});
+      if(res.ok) sent=true;
+      else if(res.error==='auth'){alert(t('expired'));session=null;S.del('sh_session');renderHeader();b.disabled=false;show('vLogin');return}
+    }catch(e){}
+  }
+  if(!sent){rec.offline=true;const q=S.get('sh_queue',[]);q.push(rec);S.set('sh_queue',q)}
+  b.disabled=false;
+  $('dTick').className='tick'+(sent?'':' amber'); $('dTick').textContent=sent?'✓':'⏳';
+  $('dTitle').textContent=t(sent?'doneTitle':'queuedTitle');
+  $('dSub').textContent=t(sent?'doneSub':'queuedSub');
+  $('dBoxes').textContent=rec.boxes.toLocaleString(lang==='vi'?'vi-VN':'en-US')+' '+t('boxesUnit');
+  pending=null; $('boxes').value=''; show('vDone'); renderQueue();
+};
+$('newBtn').onclick=()=>{
+  if(!sessionValid()){session=null;S.del('sh_session');renderHeader();show('vLogin');return}
+  show('vEntry'); updateConfirm();
+};
+
+/* ---------- offline queue ---------- */
+let flushing=false;
+async function flushQueue(){
+  if(flushing||!navigator.onLine) return;
+  let q=S.get('sh_queue',[]); if(!q.length) return;
+  flushing=true;
+  const keep=[];
+  for(const rec of q){
+    try{
+      const res=await api({action:'submit',...rec});
+      if(!res.ok) keep.push(rec);   // keep on any failure; server ignores duplicates by id
+    }catch(e){keep.push(rec)}
+  }
+  S.set('sh_queue',keep); flushing=false; renderQueue();
+}
+function renderQueue(){
+  const n=S.get('sh_queue',[]).length, el=$('queueBanner');
+  el.style.display=n?'block':'none'; el.textContent=t('queueN',{n});
+}
+window.addEventListener('online',flushQueue);
+setInterval(()=>{if(!document.hidden)flushQueue()},30000);
+
+/* ---------- utils ---------- */
+function uid(){return (crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2))}
+function fmtTime(d){return d.toLocaleString(lang==='vi'?'vi-VN':'en-GB',{timeZone:'Asia/Ho_Chi_Minh',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+
+/* ---------- boot ---------- */
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+$('uName').value=S.get('sh_lastUser','');
+applyLang();
+if(sessionValid()){show('vEntry');flushQueue()} else {session=null;S.del('sh_session');renderHeader();show('vLogin')}
+</script>
+</body>
+</html>
