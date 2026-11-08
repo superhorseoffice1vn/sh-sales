@@ -76,6 +76,17 @@
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:flex-end;justify-content:center;z-index:9}
   .modal .box{background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:22px 18px calc(22px + env(safe-area-inset-bottom))}
   .hidden{display:none!important}
+  .tagline{background:var(--brand-dark);color:#FFE7A3;text-align:center;font-size:13px;font-weight:700;
+           padding:7px 12px;letter-spacing:.2px}
+  .mission{position:fixed;inset:0;z-index:10;background:linear-gradient(170deg,#B3121B 0%,#7E0C12 100%);
+           color:#fff;display:none;flex-direction:column;overflow-y:auto;
+           padding:calc(28px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom))}
+  .mission .in{max-width:440px;margin:auto;width:100%;text-align:center}
+  .mission img{width:62%;max-width:230px;background:#fff;border-radius:20px;padding:10px 12px;margin-bottom:22px}
+  .mission .hello{font-size:18px;opacity:.9;margin-bottom:14px}
+  .mission .msg{font-size:24px;line-height:1.45;font-weight:700;text-align:left}
+  .mission .msg b{color:#FFE7A3}
+  .mission .ok{background:#fff;color:var(--brand);margin-top:30px;font-size:22px}
   .foot{font-size:12px;color:var(--muted);text-align:center;margin-top:18px}
 </style>
 </head>
@@ -95,6 +106,7 @@
     </div>
   </div>
 </header>
+<div class="tagline hidden" id="tagline" data-i="tagline"></div>
 
 <div class="wrap">
 
@@ -172,7 +184,17 @@
     </div>
   </section>
 
-  <div class="foot">SalesData · v1.2</div>
+  <div class="foot">SalesData · v1.3</div>
+</div>
+
+<!-- Welcome / mission screen (once per login) -->
+<div class="mission" id="mission">
+  <div class="in">
+    <img src="logo.png" alt="Super Horse" onerror="this.remove()">
+    <div class="hello" id="mHello"></div>
+    <div class="msg" id="mMsg"></div>
+    <button class="btn ok" id="mOk">OK</button>
+  </div>
 </div>
 
 <!-- Large-quantity double check -->
@@ -188,7 +210,7 @@
 
 <script>
 /* ================== CONFIG ================== */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxnkyTsHkQD2azl55AyvOj2371pti4-DtUAplJP6P_KJv3t-tRb9eSb62mnCLqxjxbefA/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const MIN_BOXES = 1, MAX_BOXES = 2400, BIG_QTY = 500;
 const GREEN_M = 20, ORANGE_M = 50;      // accuracy bands (metres)
 const ORANGE_AFTER_S = 20;              // orange accepted after this many seconds
@@ -226,6 +248,9 @@ const T = {
     newEntry:'Ghi nhận mới',
     queueN:'{n} mục chưa gửi — sẽ tự gửi khi có mạng.',
     expired:'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    tagline:'Dữ liệu chính xác → Quyết định đúng → Cùng phát triển',
+    hello:'Xin chào, {n}!',
+    mission:'Mỗi lần giao hàng được <b>ghi nhận chính xác</b> giúp chúng ta biết <b>khách hàng của mình ở đâu</b>. Chúng ta dùng dữ liệu đó để lập kế hoạch tốt hơn, hỗ trợ khách hàng tốt hơn, và <b>cùng nhau phát triển</b> công ty của chúng ta — Super Horse Energy Drink.',
   },
   en:{
     appTitle:'Drop-off record', logout:'Log out',
@@ -257,6 +282,9 @@ const T = {
     newEntry:'New entry',
     queueN:'{n} record(s) not sent yet — will send automatically when online.',
     expired:'Your session has expired. Please log in again.',
+    tagline:'Accurate data → Right decisions → Growing together',
+    hello:'Hello, {n}!',
+    mission:'Every drop-off you <b>record accurately</b> shows us <b>where our customers are</b>. We use that data to plan smarter, support our customers better, and <b>grow our company, Super Horse Energy Drink, together</b>.',
   }
 };
 
@@ -279,12 +307,14 @@ function applyLang(){
   document.querySelectorAll('[data-i]').forEach(el=>el.textContent=t(el.dataset.i));
   $('langBtn').textContent = lang==='vi'?'EN':'VI';
   renderHeader(); renderGps(); updateConfirm(); renderQueue();
+  if($('mission').style.display==='flex') showMission();
 }
 $('langBtn').onclick=()=>{lang=lang==='vi'?'en':'vi';S.set('sh_lang',lang);applyLang()};
 
 /* ---------- views ---------- */
 function show(v){
   ['vLogin','vEntry','vReview','vDone'].forEach(x=>$(x).classList.toggle('hidden',x!==v));
+  $('tagline').classList.toggle('hidden',v==='vLogin');
   if(v==='vEntry') startGps(); else if(v!=='vReview') stopGps();
   window.scrollTo(0,0);
 }
@@ -329,7 +359,7 @@ $('loginBtn').onclick=async()=>{
     if(res.ok){
       session={token:res.token,username:res.username,name:res.name,expires:nextMidnightVN()};
       S.set('sh_session',session); S.set('sh_lastUser',u);
-      $('uPin').value=''; renderHeader(); show('vEntry'); flushQueue();
+      $('uPin').value=''; renderHeader(); show('vEntry'); flushQueue(); showMission();
     }else{
       $('loginErr').textContent = res.error==='locked'?t('errLocked'):t('errLogin');
     }
@@ -470,6 +500,14 @@ function renderQueue(){
 }
 window.addEventListener('online',flushQueue);
 setInterval(()=>{if(!document.hidden)flushQueue()},30000);
+
+/* ---------- welcome / mission (once per login) ---------- */
+function showMission(){
+  $('mHello').textContent=t('hello',{n:session.name||session.username});
+  $('mMsg').innerHTML=t('mission');
+  $('mission').style.display='flex';
+}
+$('mOk').onclick=()=>{$('mission').style.display='none';updateConfirm()};
 
 /* ---------- utils ---------- */
 function uid(){return (crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2))}
