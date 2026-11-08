@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1A4FA0">
+<title>SalesData Dashboard</title>
+<link rel="icon" href="icon.png">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{
+    color-scheme:light;
+    --brand:#1A4FA0; --brand-dark:#0F2F63; --gold:#F5C84C;
+    --bg:#F2F3F5; --surface-1:#FFFFFF; --surface-2:#F0EFEC; --line:#E2E1DC;
+    --text-primary:#0B0B0B; --text-secondary:#52514E; --text-muted:#7A7975;
+    --series-1:#2A78D6; --hit:rgba(42,120,214,.08);
+    --good:#0CA30C; --warning:#FAB219; --critical:#D03B3B;
+    --seq-0:#F0EFEC; --seq-1:#CDE2FB; --seq-2:#9EC5F4; --seq-3:#6DA7EC; --seq-4:#3987E5;
+    --seq-5:#256ABF; --seq-6:#184F95; --seq-7:#0D366B;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme:dark;
+      --bg:#111111; --surface-1:#1A1A19; --surface-2:#262624; --line:#33332F;
+      --text-primary:#F0EFEC; --text-secondary:#C3C2B7; --text-muted:#9A998F;
+      --series-1:#3987E5; --hit:rgba(57,135,229,.12);
+      --seq-0:#262624; --seq-1:#13284A; --seq-2:#184F95; --seq-3:#1C5CAB; --seq-4:#256ABF;
+      --seq-5:#3987E5; --seq-6:#6DA7EC; --seq-7:#B7D3F6;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#111111; --surface-1:#1A1A19; --surface-2:#262624; --line:#33332F;
+    --text-primary:#F0EFEC; --text-secondary:#C3C2B7; --text-muted:#9A998F;
+    --series-1:#3987E5; --hit:rgba(57,135,229,.12);
+    --seq-0:#262624; --seq-1:#13284A; --seq-2:#184F95; --seq-3:#1C5CAB; --seq-4:#256ABF;
+    --seq-5:#3987E5; --seq-6:#6DA7EC; --seq-7:#B7D3F6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+       background:var(--bg);color:var(--text-primary);font-size:15px;line-height:1.4;
+       font-variant-numeric:tabular-nums}
+  button,select,input{font:inherit;color:inherit}
+  .hidden{display:none!important}
+  header{background:var(--brand);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px}
+  .hdr{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:12px}
+  .hdr img{height:44px;background:#fff;border-radius:10px;padding:2px 4px}
+  .hdr .ttl{flex:1;min-width:0}
+  .hdr .ttl b{display:block;font-size:18px}
+  .hdr .ttl span{font-size:12.5px;opacity:.85}
+  .chip{border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;border-radius:999px;padding:6px 11px;font-size:13px;font-weight:600;cursor:pointer}
+  .tagline{background:var(--brand-dark);color:var(--gold);text-align:center;font-size:12.5px;font-weight:700;padding:6px 10px}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 16px 40px}
+
+  /* filters */
+  @media(min-width:700px){.filters{position:sticky;top:0;z-index:20}}
+  .filters{background:var(--bg);padding:12px 0 10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-bottom:1px solid var(--line)}
+  .filters select,.filters input[type=date]{background:var(--surface-1);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-height:38px;max-width:100%}
+  .btn{background:var(--brand);color:#fff;border:0;border-radius:10px;padding:8px 14px;min-height:38px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:var(--surface-1);color:var(--text-primary);border:1px solid var(--line)}
+  .btn:disabled{opacity:.5}
+  .upd{font-size:12.5px;color:var(--text-muted);margin-left:auto}
+
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-top:14px}
+  .card{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--radius);padding:16px;min-width:0;grid-column:span 12}
+  @media(min-width:900px){ .span6{grid-column:span 6} .span4{grid-column:span 4} .span8{grid-column:span 8} }
+  .card h2{font-size:15.5px;margin:0 0 2px}
+  .card .sub{font-size:12.5px;color:var(--text-secondary);margin:0 0 12px}
+  .card-hd{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+  .card-hd > div:first-child{flex:1;min-width:180px}
+
+  /* KPI tiles */
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;grid-column:span 12}
+  @media(min-width:700px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(min-width:1100px){.kpis{grid-template-columns:repeat(6,1fr)}}
+  .kpi{background:var(--surface-1);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .kpi .l{font-size:12.5px;color:var(--text-secondary)}
+  .kpi .v{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-top:2px}
+  .kpi .d{font-size:12px;color:var(--text-muted);margin-top:2px}
+
+  /* charts */
+  .chart svg{display:block;overflow:visible}
+  .axis text{fill:var(--text-muted);font-size:11px}
+  .grid-line{stroke:var(--line);stroke-width:1}
+  .bar{fill:var(--series-1)}
+  .hitcol{fill:transparent;cursor:pointer}
+  .hitcol:hover,.hitcol.on{fill:var(--hit)}
+  .empty{color:var(--text-muted);font-size:14px;text-align:center;padding:30px 0}
+
+  /* heat map */
+  .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.heat{border-collapse:separate;border-spacing:2px;font-size:12px}
+  table.heat th{font-weight:600;color:var(--text-secondary);padding:2px 4px;white-space:nowrap;text-align:center}
+  table.heat th.nm,table.heat td.nm{position:sticky;left:0;background:var(--surface-1);text-align:left;z-index:1;
+     max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;color:var(--text-primary);font-weight:600}
+  table.heat td.c{width:38px;min-width:38px;height:30px;border-radius:5px;text-align:center;cursor:pointer;font-weight:700;font-size:11px}
+  table.heat td.c:hover{outline:2px solid var(--text-primary);outline-offset:-1px}
+  table.heat td.tot{color:var(--text-secondary);font-weight:700;text-align:right;padding-left:8px;white-space:nowrap}
+  table.heat tr.foot td{color:var(--text-secondary);font-weight:700;text-align:center;font-size:11px}
+  .legend-seq{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-secondary);margin-top:10px}
+  .legend-seq i{display:inline-block;width:22px;height:12px;border-radius:3px}
+
+  /* timeline */
+  .tl-nav{display:flex;align-items:center;gap:6px}
+  .tl-nav .btn{padding:6px 12px;min-height:34px}
+  .tl-day{font-weight:700;min-width:120px;text-align:center}
+  .tl{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .tl-names{flex:none;width:150px;border-right:1px solid var(--line);background:var(--surface-1)}
+  .tl-names .h{height:26px;border-bottom:1px solid var(--line)}
+  .tl-names .r{height:46px;padding:5px 8px;border-bottom:1px solid var(--line);overflow:hidden}
+  .tl-names .r b{display:block;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tl-names .r span{font-size:11.5px;color:var(--text-muted)}
+  .tl-names .r.hl,.lane-hl{background:var(--hit)}
+  .tl-plot{flex:1;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .dot{fill:var(--series-1);stroke:var(--surface-1);stroke-width:2;cursor:pointer}
+  .dot:hover,.dot.on{stroke:var(--text-primary)}
+  .span-line{stroke:var(--text-muted);stroke-width:2;stroke-linecap:round;opacity:.55}
+  @media(max-width:600px){.tl-names{width:112px}}
+
+  /* tables */
+  table.t{width:100%;border-collapse:collapse;font-size:13.5px}
+  table.t th{text-align:left;font-size:12px;color:var(--text-secondary);font-weight:600;padding:8px 8px;border-bottom:1px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none}
+  table.t th.num,table.t td.num{text-align:right}
+  table.t td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.t tr:last-child td{border-bottom:0}
+  .ib{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .ib i{display:block;height:8px;border-radius:0 4px 4px 0;background:var(--series-1);min-width:2px}
+  .muted{color:var(--text-muted)}
+  .tag{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--text-primary);margin-right:4px}
+  .tag i{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .qchips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .qchip{background:var(--surface-2);border-radius:10px;padding:8px 12px;font-size:13px}
+  .qchip b{font-size:18px;margin-right:4px}
+  a{color:var(--series-1)}
+
+  .box{max-height:440px;overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px}
+  .box table.t th{position:sticky;top:0;background:var(--surface-1);z-index:1}
+  #map{height:420px;border-radius:10px;border:1px solid var(--line)}
+
+  /* tooltip */
+  #tip{position:fixed;z-index:50;pointer-events:none;background:var(--surface-1);color:var(--text-primary);border:1px solid var(--line);
+       border-radius:10px;padding:8px 10px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.18);max-width:260px;display:none}
+  #tip.pin{pointer-events:auto}
+  #tip b{font-size:13.5px}
+  #tip .k{color:var(--text-secondary)}
+
+  /* login */
+  .login{max-width:380px;margin:40px auto;background:var(--surface-1);border:1px solid var(--line);border-radius:18px;padding:22px}
+  .login h1{font-size:20px;margin:0 0 4px}
+  .login label{display:block;font-weight:700;margin:14px 0 6px;font-size:14px}
+  .login input{width:100%;font-size:18px;padding:12px;border:2px solid var(--line);border-radius:12px;background:var(--surface-1)}
+  .login .btn{width:100%;margin-top:16px;padding:14px;font-size:17px}
+  .err{color:var(--critical);font-weight:600;font-size:14px;margin-top:8px;min-height:1em}
+  .loading{position:fixed;inset:0;background:rgba(0,0,0,.25);display:none;align-items:center;justify-content:center;z-index:60}
+  .loading div{background:var(--surface-1);border-radius:12px;padding:14px 20px;font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr">
+    <img src="logo.png" alt="Super Horse" onerror="this.remove()">
+    <div class="ttl"><b>SalesData · <span data-i="dash" style="font-size:inherit;opacity:1"></span></b><span id="who"></span></div>
+    <button class="chip" id="langBtn">VI</button>
+    <button class="chip hidden" id="logoutBtn" data-i="logout"></button>
+  </div>
+</header>
+<div class="tagline" data-i="tagline"></div>
+
+<div class="wrap">
+  <!-- LOGIN -->
+  <div class="login hidden" id="vLogin">
+    <h1 data-i="loginTitle"></h1>
+    <p class="muted" style="margin:0;font-size:13.5px" data-i="loginSub"></p>
+    <label for="uName" data-i="username"></label>
+    <input id="uName" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label for="uPin" data-i="pin"></label>
+    <input id="uPin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" style="letter-spacing:10px;text-align:center;font-weight:800">
+    <div class="err" id="loginErr"></div>
+    <button class="btn" id="loginBtn" data-i="loginBtn"></button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="vDash" class="hidden">
+    <div class="filters">
+      <select id="preset" aria-label="Date range">
+        <option value="today" data-i="pToday"></option>
+        <option value="yesterday" data-i="pYesterday"></option>
+        <option value="7d" data-i="p7"></option>
+        <option value="30d" data-i="p30"></option>
+        <option value="month" data-i="pMonth"></option>
+        <option value="lastmonth" data-i="pLastMonth"></option>
+        <option value="custom" data-i="pCustom"></option>
+      </select>
+      <input type="date" id="dFrom" aria-label="From">
+      <input type="date" id="dTo" aria-label="To">
+      <select id="emp" aria-label="Employee"></select>
+      <button class="btn" id="refreshBtn" data-i="refresh"></button>
+      <button class="btn ghost" id="csvBtn" data-i="csv"></button>
+      <span class="upd" id="upd"></span>
+    </div>
+
+    <div class="grid">
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card span8">
+        <h2 data-i="dailyT"></h2><p class="sub" data-i="dailyS"></p>
+        <div class="chart" id="cDaily"></div>
+      </div>
+      <div class="card span4">
+        <h2 data-i="hourT"></h2><p class="sub" data-i="hourS"></p>
+        <div class="chart" id="cHour"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i="heatT"></h2><p class="sub" data-i="heatS"></p>
+        <div class="scroll-x" id="heat"></div>
+        <div class="legend-seq" id="heatLegend"></div>
+      </div>
+
+      <div class="card" id="tlCard">
+        <div class="card-hd">
+          <div><h2 data-i="tlT"></h2><p class="sub" data-i="tlS"></p></div>
+          <div class="tl-nav">
+            <button class="btn ghost" id="tlPrev" aria-label="Previous day">‹</button>
+            <span class="tl-day" id="tlDay"></span>
+            <button class="btn ghost" id="tlNext" aria-label="Next day">›</button>
+          </div>
+        </div>
+        <div id="tl"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i="mapT"></h2><p class="sub" data-i="mapS"></p>
+        <div id="map"></div>
+      </div>
+
+      <div class="card">
+        <h2 data-i="lbT"></h2><p class="sub" data-i="lbS"></p>
+        <div class="scroll-x" id="lb"></div>
+      </div>
+
+      <div class="card span6">
+        <h2 data-i="dqT"></h2><p class="sub" data-i="dqS"></p>
+        <div id="dq"></div>
+      </div>
+      <div class="card span6">
+        <h2 data-i="recT"></h2><p class="sub" data-i="recS"></p>
+        <div class="box" id="rec"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tip"></div>
+<div class="loading" id="loading"><div data-i="loading"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+/* ================== CONFIG ================== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxnkyTsHkQD2azl55AyvOj2371pti4-DtUAplJP6P_KJv3t-tRb9eSb62mnCLqxjxbefA/exec';
+const BIG_QTY = 500, DUP_MIN = 15, DUP_M = 100;
+const VN = 7 * 3600e3;
+/* ============================================ */
+
+const T = {
+  en:{
+    dash:'Dashboard', logout:'Log out', tagline:'Accurate data → Better decisions → Growing together',
+    loginTitle:'Manager login', loginSub:'Use your SalesData username and PIN. Admin access only.',
+    username:'Username', pin:'PIN', loginBtn:'Log in',
+    errLogin:'Wrong username or PIN.', errLocked:'Too many attempts. Try again in 15 minutes.',
+    errForbidden:'This account does not have dashboard access. Ask for Role = admin in the Users tab.',
+    errNet:'Cannot reach the server. Check your connection.', errFill:'Enter username and 4-digit PIN.',
+    pToday:'Today', pYesterday:'Yesterday', p7:'Last 7 days', p30:'Last 30 days', pMonth:'This month', pLastMonth:'Last month', pCustom:'Custom range',
+    allStaff:'All staff', refresh:'Refresh', csv:'Export CSV', updated:'Updated {t}', loading:'Loading…',
+    kBoxes:'Boxes dropped off', kDrops:'Drop-offs', kAvg:'Avg boxes / drop-off', kStaff:'Active staff', kPerDay:'Boxes / staff-day', kGps:'GPS green',
+    vsPrev:'{a} vs previous {n} days', noPrev:'no previous data', ofStaff:'of {n} staff',
+    dailyT:'Boxes per day', dailyS:'Total boxes dropped off each day (Vietnam time).',
+    hourT:'Time of day', hourS:'Boxes by hour of drop-off.',
+    heatT:'Heat map — boxes per employee per day', heatS:'Darker = more boxes. Tap a cell to open that day in the timeline.',
+    tlT:'Daily timeline', tlS:'Each dot is one drop-off; bigger dot = more boxes. Line = first to last drop-off. Scroll sideways on phone.',
+    mapT:'Drop-off map', mapS:'Every drop-off in the selected range. Circle size = boxes.',
+    lbT:'Employee performance', lbS:'Tap a column heading to sort.',
+    dqT:'Data checks', dqS:'Entries worth a second look.',
+    recT:'Latest entries', recS:'Most recent 100 drop-offs in range.',
+    cEmp:'Employee', cBoxes:'Boxes', cDrops:'Drop-offs', cAvg:'Avg / drop', cDays:'Active days', cPerDay:'Boxes / day', cGps:'GPS green', cLast:'Last drop-off', cTime:'Time', cGpsAcc:'GPS', cMap:'Map', cFlags:'Check',
+    total:'Total', none:'No drop-offs in this range.', noneDay:'No drop-offs on this day.', open:'Open map',
+    fBig:'Large qty', fOrange:'GPS orange', fLate:'Sent later', fDup:'Possible duplicate',
+    dqBig:'Over {n} boxes', dqOrange:'GPS orange (±21–50 m)', dqLate:'Saved offline, sent later', dqDup:'Same person, <{m} min & <{d} m apart',
+    dqNone:'Nothing to check — all entries look clean.',
+    drops:'{n} drop-offs', boxesN:'{n} boxes', staffNoDrops:'no drop-offs', sentLater:'Sent later (offline)', accu:'±{m} m',
+    legLow:'fewer', legHigh:'more', zero:'0',
+  },
+  vi:{
+    dash:'Báo cáo', logout:'Thoát', tagline:'Dữ liệu chính xác → Quyết định tốt hơn → Cùng phát triển',
+    loginTitle:'Đăng nhập quản lý', loginSub:'Dùng tên đăng nhập và mã PIN SalesData. Chỉ dành cho quản lý.',
+    username:'Tên đăng nhập', pin:'Mã PIN', loginBtn:'Đăng nhập',
+    errLogin:'Sai tên đăng nhập hoặc mã PIN.', errLocked:'Nhập sai quá nhiều lần. Thử lại sau 15 phút.',
+    errForbidden:'Tài khoản này không có quyền xem báo cáo. Cần Role = admin trong tab Users.',
+    errNet:'Không kết nối được máy chủ. Kiểm tra mạng.', errFill:'Nhập tên đăng nhập và mã PIN 4 số.',
+    pToday:'Hôm nay', pYesterday:'Hôm qua', p7:'7 ngày qua', p30:'30 ngày qua', pMonth:'Tháng này', pLastMonth:'Tháng trước', pCustom:'Tùy chọn',
+    allStaff:'Tất cả nhân viên', refresh:'Làm mới', csv:'Xuất CSV', updated:'Cập nhật {t}', loading:'Đang tải…',
+    kBoxes:'Số thùng đã giao', kDrops:'Lượt giao', kAvg:'TB thùng / lượt', kStaff:'Nhân viên hoạt động', kPerDay:'Thùng / người / ngày', kGps:'GPS xanh',
+    vsPrev:'{a} so với {n} ngày trước', noPrev:'chưa có dữ liệu kỳ trước', ofStaff:'trên {n} nhân viên',
+    dailyT:'Số thùng theo ngày', dailyS:'Tổng số thùng giao mỗi ngày (giờ Việt Nam).',
+    hourT:'Giờ trong ngày', hourS:'Số thùng theo giờ giao.',
+    heatT:'Bản đồ nhiệt — thùng theo nhân viên theo ngày', heatS:'Màu đậm = nhiều thùng. Chạm vào ô để xem ngày đó trên dòng thời gian.',
+    tlT:'Dòng thời gian trong ngày', tlS:'Mỗi chấm là một lượt giao; chấm lớn = nhiều thùng. Đường kẻ = từ lượt đầu đến lượt cuối. Vuốt ngang trên điện thoại.',
+    mapT:'Bản đồ điểm giao', mapS:'Tất cả lượt giao trong khoảng thời gian đã chọn. Vòng tròn lớn = nhiều thùng.',
+    lbT:'Hiệu suất nhân viên', lbS:'Chạm vào tiêu đề cột để sắp xếp.',
+    dqT:'Kiểm tra dữ liệu', dqS:'Các mục nên xem lại.',
+    recT:'Mục mới nhất', recS:'100 lượt giao gần nhất trong khoảng thời gian.',
+    cEmp:'Nhân viên', cBoxes:'Thùng', cDrops:'Lượt', cAvg:'TB / lượt', cDays:'Ngày làm', cPerDay:'Thùng / ngày', cGps:'GPS xanh', cLast:'Lượt cuối', cTime:'Thời gian', cGpsAcc:'GPS', cMap:'Bản đồ', cFlags:'Kiểm tra',
+    total:'Tổng', none:'Không có lượt giao trong khoảng này.', noneDay:'Không có lượt giao trong ngày này.', open:'Mở bản đồ',
+    fBig:'SL lớn', fOrange:'GPS cam', fLate:'Gửi sau', fDup:'Có thể trùng',
+    dqBig:'Trên {n} thùng', dqOrange:'GPS cam (±21–50 m)', dqLate:'Lưu ngoại tuyến, gửi sau', dqDup:'Cùng người, cách <{m} phút & <{d} m',
+    dqNone:'Không có gì cần kiểm tra — dữ liệu tốt.',
+    drops:'{n} lượt', boxesN:'{n} thùng', staffNoDrops:'chưa giao', sentLater:'Gửi sau (ngoại tuyến)', accu:'±{m} m',
+    legLow:'ít', legHigh:'nhiều', zero:'0',
+  }
+};
+
+/* ---------- state ---------- */
+const S = {
+  get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}},
+  del(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+const $ = id => document.getElementById(id);
+let lang = S.get('sd_dash_lang','en');
+let session = S.get('sd_dash_session', null);
+let data = null;            // {rows, users, generated}
+let range = null;           // {from,to,prevFrom,prevTo,days}
+let tlDay = null, tlHl = null, map = null, mapLayer = null;
+let lbSort = {k:'b', dir:-1};
+
+const t = (k,v) => { let s = (T[lang][k] ?? T.en[k] ?? k); if (v) for (const x in v) s = s.replace('{'+x+'}', v[x]); return s; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf = n => Number(n).toLocaleString(lang==='vi'?'vi-VN':'en-US', {maximumFractionDigits:1});
+const pct = n => (isFinite(n) ? Math.round(n*100) : 0) + '%';
+
+/* ---------- Vietnam-time date helpers ---------- */
+const dkey = ts => new Date(ts + VN).toISOString().slice(0,10);
+const vnHour = ts => { const d = new Date(ts + VN); return d.getUTCHours() + d.getUTCMinutes()/60; };
+const hm = ts => new Date(ts + VN).toISOString().slice(11,16);
+const addDays = (k,n) => { const [y,m,d] = k.split('-').map(Number); return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10); };
+const dayDiff = (a,b) => Math.round((Date.parse(b)-Date.parse(a))/86400e3);
+const today = () => dkey(Date.now());
+function dLabel(k, long){
+  const [y,m,d] = k.split('-').map(Number), dt = new Date(Date.UTC(y,m-1,d));
+  const wd = dt.toLocaleDateString(lang==='vi'?'vi-VN':'en-GB',{weekday:'short',timeZone:'UTC'});
+  return long ? `${wd} ${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}` : `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}`;
+}
+const wdShort = k => { const [y,m,d]=k.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)).toLocaleDateString(lang==='vi'?'vi-VN':'en-GB',{weekday:'narrow',timeZone:'UTC'}); };
+
+/* ---------- i18n ---------- */
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i]').forEach(el => el.textContent = t(el.dataset.i));
+  $('langBtn').textContent = lang === 'vi' ? 'EN' : 'VI';
+  if (data) { fillEmpSelect(); render(); }
+}
+$('langBtn').onclick = () => { lang = lang==='vi'?'en':'vi'; S.set('sd_dash_lang',lang); applyLang(); };
+
+/* ---------- API ---------- */
+async function api(p){
+  const r = await fetch(API_URL, {method:'POST', body: JSON.stringify(p)});
+  if (!r.ok) throw new Error('http '+r.status);
+  return r.json();
+}
+function nextMidnightVN(){ const now=Date.now(); return Math.floor((now+VN)/86400e3)*86400e3 + 86400e3 - VN; }
+
+/* ---------- login ---------- */
+$('uPin').addEventListener('input', e => e.target.value = e.target.value.replace(/\D/g,'').slice(0,4));
+$('uPin').addEventListener('keydown', e => { if (e.key==='Enter') $('loginBtn').click(); });
+$('loginBtn').onclick = async () => {
+  const u = $('uName').value.trim().toLowerCase(), p = $('uPin').value;
+  $('loginErr').textContent = '';
+  if (!u || !/^\d{4}$/.test(p)) { $('loginErr').textContent = t('errFill'); return; }
+  $('loginBtn').disabled = true;
+  try {
+    const r = await api({action:'login', username:u, pin:p});
+    if (!r.ok) { $('loginErr').textContent = r.error==='locked' ? t('errLocked') : t('errLogin'); }
+    else if (r.role !== 'admin') { $('loginErr').textContent = t('errForbidden'); }
+    else {
+      session = {token:r.token, username:r.username, name:r.name, expires: nextMidnightVN()};
+      S.set('sd_dash_session', session); S.set('sd_dash_user', u); $('uPin').value='';
+      showDash(); load();
+    }
+  } catch(e) { $('loginErr').textContent = t('errNet'); }
+  $('loginBtn').disabled = false;
+};
+$('logoutBtn').onclick = () => { session=null; S.del('sd_dash_session'); showLogin(); };
+function showLogin(){ $('vLogin').classList.remove('hidden'); $('vDash').classList.add('hidden'); $('logoutBtn').classList.add('hidden'); $('who').textContent=''; }
+function showDash(){ $('vLogin').classList.add('hidden'); $('vDash').classList.remove('hidden'); $('logoutBtn').classList.remove('hidden');
+  $('who').textContent = (session.name||'') + ' · @' + session.username; }
+
+/* ---------- date range ---------- */
+function presetRange(p){
+  const td = today();
+  switch(p){
+    case 'today': return [td, td];
+    case 'yesterday': return [addDays(td,-1), addDays(td,-1)];
+    case '30d': return [addDays(td,-29), td];
+    case 'month': return [td.slice(0,8)+'01', td];
+    case 'lastmonth': { const first = td.slice(0,8)+'01', lastEnd = addDays(first,-1); return [lastEnd.slice(0,8)+'01', lastEnd]; }
+    default: return [addDays(td,-6), td];
+  }
+}
+function setRange(from, to){
+  if (to < from) [from,to] = [to,from];
+  const days = dayDiff(from,to)+1;
+  range = {from, to, days, prevTo: addDays(from,-1), prevFrom: addDays(from,-days)};
+  $('dFrom').value = from; $('dTo').value = to;
+}
+$('preset').onchange = () => { if ($('preset').value !== 'custom') { const [a,b] = presetRange($('preset').value); setRange(a,b); S.set('sd_dash_preset',$('preset').value); load(); } };
+['dFrom','dTo'].forEach(id => $(id).onchange = () => { if ($('dFrom').value && $('dTo').value) { $('preset').value='custom'; setRange($('dFrom').value,$('dTo').value); load(); } });
+$('emp').onchange = () => { tlHl = null; render(); };
+$('refreshBtn').onclick = () => load();
+
+/* ---------- load ---------- */
+let loadSeq = 0;
+async function load(){
+  if (!session || Date.now() > session.expires) { session=null; S.del('sd_dash_session'); showLogin(); return; }
+  const seq = ++loadSeq;
+  $('loading').style.display='flex'; $('refreshBtn').disabled = true;
+  try {
+    const r = await api({action:'dashboard', token:session.token, from:range.prevFrom, to:range.to});
+    if (seq !== loadSeq) return;
+    if (!r.ok) {
+      if (r.error==='auth' || r.error==='forbidden') { session=null; S.del('sd_dash_session'); showLogin(); $('loginErr').textContent = r.error==='forbidden'?t('errForbidden'):''; return; }
+      throw new Error(r.error);
+    }
+    data = r; data.rows.sort((a,b) => a.t - b.t);
+    if (!tlDay || tlDay < range.from || tlDay > range.to) tlDay = lastActiveDay() || range.to;
+    fillEmpSelect(); render();
+  } catch(e) { $('upd').textContent = t('errNet'); }
+  finally { if (seq===loadSeq){ $('loading').style.display='none'; $('refreshBtn').disabled=false; } }
+}
+setInterval(() => { if (!document.hidden && data && session) load(); }, 5*60e3);
+
+/* ---------- derived data ---------- */
+function staffList(){
+  const m = new Map();
+  for (const u of data.users) if (u.active && u.role !== 'admin') m.set(u.u, u.n || u.u);
+  for (const r of data.rows) if (!m.has(r.u)) m.set(r.u, r.n || r.u);
+  return [...m].map(([u,n]) => ({u,n})).sort((a,b) => a.n.localeCompare(b.n, 'vi'));
+}
+function fillEmpSelect(){
+  const cur = $('emp').value, list = staffList();
+  $('emp').innerHTML = `<option value="">${esc(t('allStaff'))}</option>` + list.map(s => `<option value="${esc(s.u)}">${esc(s.n)}</option>`).join('');
+  $('emp').value = list.some(s => s.u===cur) ? cur : '';
+}
+function inRange(r, a, b){ const k = dkey(r.t); return k >= a && k <= b; }
+function current(){ const e=$('emp').value; return data.rows.filter(r => inRange(r,range.from,range.to) && (!e || r.u===e)); }
+function previous(){ const e=$('emp').value; return data.rows.filter(r => inRange(r,range.prevFrom,range.prevTo) && (!e || r.u===e)); }
+function daysList(){ const out=[]; for (let k=range.from; k<=range.to; k=addDays(k,1)) out.push(k); return out; }
+function lastActiveDay(){ const rs = data.rows.filter(r => inRange(r,range.from,range.to)); return rs.length ? dkey(rs[rs.length-1].t) : null; }
+function visibleStaff(rows){
+  const e = $('emp').value, all = staffList();
+  return e ? all.filter(s => s.u===e) : all;
+}
+function dist(a,b){ const R=6371e3, toR=x=>x*Math.PI/180, dLat=toR(b.lat-a.lat), dLng=toR(b.lng-a.lng);
+  const h=Math.sin(dLat/2)**2+Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(h)); }
+function flagsFor(rows){
+  const f = new Map(), last = new Map();
+  for (const r of rows){
+    const fl = [];
+    if (r.b > BIG_QTY) fl.push('big');
+    if (String(r.g).toLowerCase()==='orange') fl.push('orange');
+    if (r.off) fl.push('late');
+    const p = last.get(r.u);
+    if (p && r.t - p.t < DUP_MIN*60e3 && dist(p,r) < DUP_M) fl.push('dup');
+    last.set(r.u, r);
+    if (fl.length) f.set(r.id, fl);
+  }
+  return f;
+}
+const sum = (a,f) => a.reduce((s,x)=>s+f(x),0);
+
+/* ---------- render ---------- */
+function render(){
+  if (!data) return;
+  const cur = current(), prev = previous();
+  renderKpis(cur, prev);
+  renderDaily(cur);
+  renderHour(cur);
+  renderHeat(cur);
+  renderTimeline();
+  renderMap(cur);
+  renderLeaderboard(cur);
+  const fl = flagsFor(data.rows.filter(r => inRange(r,range.from,range.to)));
+  renderDQ(cur, fl);
+  renderRecent(cur, fl);
+  $('upd').textContent = t('updated', {t: hm(data.generated) + ' (VN)'});
+}
+
+function delta(a, b){
+  if (!b) return t('noPrev');
+  const d = (a-b)/b, arrow = d > 0.005 ? '▲' : d < -0.005 ? '▼' : '■';
+  return t('vsPrev', {a: `${arrow} ${Math.abs(Math.round(d*100))}%`, n: range.days});
+}
+function renderKpis(cur, prev){
+  const boxes = sum(cur,r=>r.b), pboxes = sum(prev,r=>r.b);
+  const staffAll = visibleStaff().length;
+  const active = new Set(cur.map(r=>r.u)).size;
+  const staffDays = new Set(cur.map(r=>r.u+'|'+dkey(r.t))).size;
+  const pStaffDays = new Set(prev.map(r=>r.u+'|'+dkey(r.t))).size;
+  const green = cur.filter(r=>String(r.g).toLowerCase()==='green').length;
+  const tiles = [
+    [t('kBoxes'), nf(boxes), delta(boxes,pboxes)],
+    [t('kDrops'), nf(cur.length), delta(cur.length, prev.length)],
+    [t('kAvg'), cur.length ? nf(boxes/cur.length) : '–', prev.length ? delta(boxes/cur.length||0, pboxes/prev.length) : t('noPrev')],
+    [t('kStaff'), nf(active), t('ofStaff',{n:staffAll})],
+    [t('kPerDay'), staffDays ? nf(boxes/staffDays) : '–', pStaffDays ? delta(staffDays?boxes/staffDays:0, pboxes/pStaffDays) : t('noPrev')],
+    [t('kGps'), cur.length ? pct(green/cur.length) : '–', t('drops',{n:nf(cur.length)})],
+  ];
+  $('kpis').innerHTML = tiles.map(([l,v,d]) => `<div class="kpi"><div class="l">${esc(l)}</div><div class="v">${esc(v)}</div><div class="d">${esc(d)}</div></div>`).join('');
+}
+
+/* generic single-series bar chart (SVG) */
+function niceMax(v){ if (v<=0) return 10; const p=Math.pow(10,Math.floor(Math.log10(v))), n=v/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; }
+function barChart(el, labels, values, opt){
+  const W = Math.max(260, el.clientWidth), H = opt.h || 210, padL = 40, padB = 24, padT = 8;
+  const n = values.length, max = niceMax(Math.max(...values, 0)), pw = W - padL, ph = H - padB - padT;
+  const step = pw / n, bw = Math.max(2, Math.min(36, step - 2)), y = v => padT + ph - (v/max)*ph;
+  const every = Math.ceil(n / Math.max(1, Math.floor(pw/46)));
+  let s = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(opt.aria||'')}">`;
+  for (let i=0;i<=4;i++){ const v=max*i/4, yy=y(v); s += `<line class="grid-line" x1="${padL}" x2="${W}" y1="${yy}" y2="${yy}"/><g class="axis"><text x="${padL-6}" y="${yy+4}" text-anchor="end">${nf(v)}</text></g>`; }
+  values.forEach((v,i) => {
+    const x = padL + i*step + (step-bw)/2, top = y(v), h = padT+ph-top;
+    if (v > 0) { const r = Math.min(4, bw/2, h); s += `<path class="bar" d="M${x},${padT+ph} V${top+r} Q${x},${top} ${x+r},${top} H${x+bw-r} Q${x+bw},${top} ${x+bw},${top+r} V${padT+ph} Z"/>`; }
+    if (i % every === 0) s += `<g class="axis"><text x="${x+bw/2}" y="${H-6}" text-anchor="middle">${esc(labels[i])}</text></g>`;
+    s += `<rect class="hitcol" data-i="${i}" x="${padL+i*step}" y="${padT}" width="${step}" height="${ph}"/>`;
+  });
+  s += `<line stroke="var(--text-muted)" x1="${padL}" x2="${W}" y1="${padT+ph}" y2="${padT+ph}"/></svg>`;
+  el.innerHTML = s;
+  el.querySelectorAll('.hitcol').forEach(r => {
+    const i = +r.dataset.i, show = e => tipShow(opt.tip(i), e);
+    r.addEventListener('mousemove', show); r.addEventListener('mouseleave', tipHide);
+    r.addEventListener('click', e => { show(e); e.stopPropagation(); });
+  });
+}
+function renderDaily(cur){
+  const days = daysList(), m = new Map(days.map(d=>[d,{b:0,n:0}]));
+  for (const r of cur){ const k=dkey(r.t), o=m.get(k); if (o){o.b+=r.b;o.n++;} }
+  const vals = days.map(d=>m.get(d).b);
+  if (!cur.length) { $('cDaily').innerHTML = `<div class="empty">${esc(t('none'))}</div>`; return; }
+  barChart($('cDaily'), days.map(d=>dLabel(d)), vals, {aria:t('dailyT'),
+    tip: i => `<b>${esc(dLabel(days[i],true))}</b><br>${esc(t('boxesN',{n:nf(vals[i])}))} · ${esc(t('drops',{n:m.get(days[i]).n}))}`});
+}
+function renderHour(cur){
+  if (!cur.length) { $('cHour').innerHTML = `<div class="empty">${esc(t('none'))}</div>`; return; }
+  const hrs = cur.map(r=>Math.floor(vnHour(r.t)));
+  const lo = Math.min(6, ...hrs), hi = Math.max(19, ...hrs), labels=[], vals=[], cnt=[];
+  for (let h=lo; h<=hi; h++){ labels.push(String(h).padStart(2,'0')); vals.push(0); cnt.push(0); }
+  cur.forEach((r,i)=>{ const j=hrs[i]-lo; vals[j]+=r.b; cnt[j]++; });
+  barChart($('cHour'), labels, vals, {aria:t('hourT'),
+    tip: i => `<b>${labels[i]}:00–${labels[i]}:59</b><br>${esc(t('boxesN',{n:nf(vals[i])}))} · ${esc(t('drops',{n:cnt[i]}))}`});
+}
+
+/* heat map */
+function seqColor(v, max){
+  if (!v) return ['var(--seq-0)','var(--text-muted)'];
+  const i = Math.min(7, 1 + Math.floor((v/max) * 6.999));
+  return [`var(--seq-${i})`, i >= 4 ? '#fff' : 'var(--text-primary)'];
+}
+function renderHeat(cur){
+  const days = daysList(), staff = visibleStaff(), m = new Map();
+  for (const r of cur){ const k=r.u+'|'+dkey(r.t); m.set(k,(m.get(k)||0)+r.b); }
+  const max = Math.max(1, ...m.values());
+  const colTot = days.map(d => staff.reduce((s,p)=>s+(m.get(p.u+'|'+d)||0),0));
+  let h = `<table class="heat"><thead><tr><th class="nm"></th>${days.map(d=>`<th title="${esc(dLabel(d,true))}">${esc(wdShort(d))}<br>${esc(dLabel(d))}</th>`).join('')}<th>${esc(t('total'))}</th></tr></thead><tbody>`;
+  for (const p of staff){
+    let tot = 0;
+    h += `<tr><td class="nm" title="${esc(p.n)}">${esc(p.n)}</td>`;
+    for (const d of days){ const v = m.get(p.u+'|'+d)||0; tot += v; const [bg,fg] = seqColor(v,max);
+      h += `<td class="c" style="background:${bg};color:${fg}" data-u="${esc(p.u)}" data-d="${d}" data-v="${v}" data-n="${esc(p.n)}">${v ? (v>=1000? (v/1000).toFixed(1)+'k' : v) : ''}</td>`; }
+    h += `<td class="tot">${nf(tot)}</td></tr>`;
+  }
+  h += `<tr class="foot"><td class="nm">${esc(t('total'))}</td>${colTot.map(v=>`<td>${v?nf(v):''}</td>`).join('')}<td class="tot">${nf(sum(colTot,x=>x))}</td></tr></tbody></table>`;
+  $('heat').innerHTML = staff.length ? h : `<div class="empty">${esc(t('none'))}</div>`;
+  $('heat').querySelectorAll('td.c').forEach(td => {
+    const html = () => `<b>${esc(td.dataset.n)}</b><br>${esc(dLabel(td.dataset.d,true))}<br>${esc(t('boxesN',{n:nf(td.dataset.v)}))}`;
+    td.addEventListener('mousemove', e => tipShow(html(), e)); td.addEventListener('mouseleave', tipHide);
+    td.addEventListener('click', () => { tipHide(); tlDay = td.dataset.d; tlHl = td.dataset.u; renderTimeline(); $('tlCard').scrollIntoView({behavior:'smooth', block:'start'}); });
+  });
+  const steps = [0,1,2,3,4,5,6,7];
+  $('heatLegend').innerHTML = `<span>${esc(t('legLow'))}</span>${steps.map(i=>`<i style="background:var(--seq-${i})"></i>`).join('')}<span>${esc(t('legHigh'))}</span><span class="muted" style="margin-left:8px">max ${nf(max)}</span>`;
+}
+
+/* timeline */
+function renderTimeline(){
+  $('tlDay').textContent = dLabel(tlDay, true);
+  $('tlPrev').disabled = tlDay <= range.from; $('tlNext').disabled = tlDay >= range.to;
+  const e = $('emp').value;
+  const rows = data.rows.filter(r => dkey(r.t)===tlDay && (!e || r.u===e));
+  const staff = visibleStaff();
+  // staff with drop-offs first (by first drop time), then the rest
+  const byU = new Map(); for (const r of rows){ if(!byU.has(r.u)) byU.set(r.u,[]); byU.get(r.u).push(r); }
+  staff.sort((a,b)=>{ const A=byU.get(a.u), B=byU.get(b.u); if (A&&B) return A[0].t-B[0].t; if (A) return -1; if (B) return 1; return a.n.localeCompare(b.n,'vi'); });
+  if (!staff.length){ $('tl').innerHTML = `<div class="empty">${esc(t('noneDay'))}</div>`; return; }
+  const hrs = rows.map(r=>vnHour(r.t));
+  const h0 = Math.min(6, Math.floor(Math.min(24, ...hrs))), h1 = Math.max(20, Math.ceil(Math.max(0, ...hrs)));
+  const pxH = 72, W = (h1-h0)*pxH + 52, LH = 46, AX = 26, H = AX + staff.length*LH;
+  const maxB = Math.max(1, ...rows.map(r=>r.b));
+  const x = hr => 26 + (hr-h0)*pxH;
+  let svg = `<svg width="${W}" height="${H}" role="img" aria-label="${esc(t('tlT'))}">`;
+  staff.forEach((p,i)=>{ if (tlHl===p.u) svg += `<rect class="lane-hl" x="0" y="${AX+i*LH}" width="${W}" height="${LH}" style="fill:var(--hit)"/>`;
+    svg += `<line class="grid-line" x1="0" x2="${W}" y1="${AX+(i+1)*LH}" y2="${AX+(i+1)*LH}"/>`; });
+  for (let hr=h0; hr<=h1; hr++){ svg += `<line class="grid-line" x1="${x(hr)}" x2="${x(hr)}" y1="${AX-4}" y2="${H}" ${hr%2?'stroke-dasharray="2 3"':''}/><g class="axis"><text x="${x(hr)}" y="16" text-anchor="middle">${String(hr).padStart(2,'0')}:00</text></g>`; }
+  svg += `<line class="grid-line" x1="0" x2="${W}" y1="${AX}" y2="${AX}"/>`;
+  staff.forEach((p,i)=>{
+    const rs = byU.get(p.u); if (!rs) return;
+    const cy = AX + i*LH + LH/2;
+    if (rs.length > 1) svg += `<line class="span-line" x1="${x(vnHour(rs[0].t))}" x2="${x(vnHour(rs[rs.length-1].t))}" y1="${cy}" y2="${cy}"/>`;
+    rs.forEach(r => { const rad = 5 + 10*Math.sqrt(r.b/maxB);
+      svg += `<circle class="dot" cx="${x(vnHour(r.t))}" cy="${cy}" r="${rad.toFixed(1)}" data-id="${esc(r.id)}"/>`; });
+  });
+  svg += '</svg>';
+  const names = `<div class="tl-names"><div class="h"></div>${staff.map(p=>{ const rs=byU.get(p.u);
+    const sub = rs ? `${t('drops',{n:rs.length})} · ${t('boxesN',{n:nf(sum(rs,r=>r.b))})}` : t('staffNoDrops');
+    return `<div class="r ${tlHl===p.u?'hl':''}" title="${esc(p.n)}"><b>${esc(p.n)}</b><span>${esc(sub)}</span></div>`; }).join('')}</div>`;
+  $('tl').innerHTML = `<div class="tl">${names}<div class="tl-plot" id="tlPlot">${svg}</div></div>` + (rows.length ? '' : `<div class="empty">${esc(t('noneDay'))}</div>`);
+  const byId = new Map(rows.map(r=>[r.id,r]));
+  $('tl').querySelectorAll('.dot').forEach(c => {
+    const r = byId.get(c.dataset.id), html = rowTip(r);
+    c.addEventListener('mousemove', e => tipShow(html, e)); c.addEventListener('mouseleave', () => { if (!$('tip').classList.contains('pin')) tipHide(); });
+    c.addEventListener('click', e => { e.stopPropagation(); tipShow(html, e, true); });
+  });
+  // scroll to first drop-off
+  if (rows.length) { const plot = $('tlPlot'); plot.scrollLeft = Math.max(0, x(Math.min(...hrs)) - 40); }
+}
+$('tlPrev').onclick = () => { if (tlDay > range.from){ tlDay = addDays(tlDay,-1); renderTimeline(); } };
+$('tlNext').onclick = () => { if (tlDay < range.to){ tlDay = addDays(tlDay,1); renderTimeline(); } };
+
+function mapsUrl(r){ return `https://maps.google.com/?q=${r.lat},${r.lng}`; }
+function rowTip(r){
+  return `<b>${esc(r.n)}</b><br><span class="k">${esc(dLabel(dkey(r.t),true))} · ${hm(r.t)}</span><br>`+
+    `${esc(t('boxesN',{n:nf(r.b)}))} · GPS ${esc(t('accu',{m:r.acc}))} ${esc(r.g)}`+
+    (r.off ? `<br><span class="k">${esc(t('sentLater'))}</span>` : '') +
+    `<br><a href="${mapsUrl(r)}" target="_blank" rel="noopener">${esc(t('open'))} ↗</a>`;
+}
+
+/* map */
+function renderMap(cur){
+  if (typeof L === 'undefined') { $('map').innerHTML = `<div class="empty">Map library not loaded.</div>`; return; }
+  if (!map){
+    map = L.map('map', {scrollWheelZoom:false}).setView([16.63, 106.59], 9);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; OpenStreetMap'}).addTo(map);
+  }
+  if (mapLayer) mapLayer.remove();
+  mapLayer = L.layerGroup().addTo(map);
+  const maxB = Math.max(1, ...cur.map(r=>r.b)), col = getComputedStyle(document.documentElement).getPropertyValue('--series-1').trim() || '#2A78D6';
+  const pts = [];
+  for (const r of cur){
+    if (!isFinite(r.lat) || !isFinite(r.lng)) continue;
+    pts.push([r.lat, r.lng]);
+    L.circleMarker([r.lat, r.lng], {radius: 5 + 12*Math.sqrt(r.b/maxB), color:'#fff', weight:2, fillColor:col, fillOpacity:.75})
+      .bindPopup(rowTip(r)).addTo(mapLayer);
+  }
+  if (pts.length === 1) map.setView(pts[0], 14);
+  else if (pts.length) map.fitBounds(pts, {padding:[30,30], maxZoom:15});
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
+/* leaderboard */
+function renderLeaderboard(cur){
+  const staff = visibleStaff(), m = new Map(staff.map(s=>[s.u,{u:s.u,n:s.n,b:0,d:0,days:new Set(),g:0,last:0}]));
+  for (const r of cur){ let o=m.get(r.u); if(!o){o={u:r.u,n:r.n,b:0,d:0,days:new Set(),g:0,last:0}; m.set(r.u,o);}
+    o.b+=r.b; o.d++; o.days.add(dkey(r.t)); if(String(r.g).toLowerCase()==='green') o.g++; o.last=Math.max(o.last,r.t); }
+  const rows = [...m.values()].map(o=>({...o, nd:o.days.size, avg:o.d?o.b/o.d:0, pd:o.days.size?o.b/o.days.size:0, gp:o.d?o.g/o.d:-1}));
+  const k = lbSort.k, dir = lbSort.dir;
+  rows.sort((a,b)=> k==='n' ? dir*a.n.localeCompare(b.n,'vi') : dir*((a[k]||0)-(b[k]||0)) || a.n.localeCompare(b.n,'vi'));
+  const maxB = Math.max(1, ...rows.map(r=>r.b));
+  const cols = [['n','cEmp',0],['b','cBoxes',1],['d','cDrops',1],['avg','cAvg',1],['nd','cDays',1],['pd','cPerDay',1],['gp','cGps',1],['last','cLast',1]];
+  const arrow = c => c===k ? (dir<0?' ▾':' ▴') : '';
+  let h = `<table class="t"><thead><tr>${cols.map(([c,l,num])=>`<th class="${num?'num':''}" data-k="${c}">${esc(t(l))}${arrow(c)}</th>`).join('')}</tr></thead><tbody>`;
+  for (const r of rows){
+    h += `<tr><td><b>${esc(r.n)}</b> <span class="muted">@${esc(r.u)}</span></td>
+      <td class="num"><div class="ib"><i style="width:${Math.round(80*r.b/maxB)}px"></i><b>${nf(r.b)}</b></div></td>
+      <td class="num">${nf(r.d)}</td><td class="num">${r.d?nf(r.avg):'–'}</td><td class="num">${nf(r.nd)}</td>
+      <td class="num">${r.nd?nf(r.pd):'–'}</td><td class="num">${r.d?pct(r.gp):'–'}</td>
+      <td class="num">${r.last ? esc(dLabel(dkey(r.last))+' '+hm(r.last)) : '<span class="muted">–</span>'}</td></tr>`;
+  }
+  h += `</tbody></table>`;
+  $('lb').innerHTML = rows.length ? h : `<div class="empty">${esc(t('none'))}</div>`;
+  $('lb').querySelectorAll('th').forEach(th => th.onclick = () => {
+    const c = th.dataset.k; lbSort = {k:c, dir: lbSort.k===c ? -lbSort.dir : (c==='n'?1:-1)}; renderLeaderboard(current()); });
+}
+
+/* data quality */
+const FLAG = {
+  big:   {l:'fBig',    c:'var(--warning)'},
+  orange:{l:'fOrange', c:'var(--warning)'},
+  late:  {l:'fLate',   c:'var(--text-muted)'},
+  dup:   {l:'fDup',    c:'var(--critical)'},
+};
+const flagTags = fl => (fl||[]).map(f=>`<span class="tag"><i style="background:${FLAG[f].c}"></i>${esc(t(FLAG[f].l))}</span>`).join('');
+function renderDQ(cur, fl){
+  const flagged = cur.filter(r=>fl.has(r.id)).reverse();
+  const cnt = k => cur.filter(r=>(fl.get(r.id)||[]).includes(k)).length;
+  const chips = [['dup', t('dqDup',{m:DUP_MIN,d:DUP_M})],['big', t('dqBig',{n:BIG_QTY})],['orange', t('dqOrange')],['late', t('dqLate')]];
+  let h = `<div class="qchips">${chips.map(([k,l])=>`<div class="qchip"><span class="tag" style="border:0;padding:0"><i style="background:${FLAG[k].c}"></i></span><b>${cnt(k)}</b>${esc(l)}</div>`).join('')}</div>`;
+  if (!flagged.length) h += `<div class="empty">${esc(t('dqNone'))}</div>`;
+  else h += `<div class="box"><table class="t"><thead><tr><th>${esc(t('cTime'))}</th><th>${esc(t('cEmp'))}</th><th class="num">${esc(t('cBoxes'))}</th><th>${esc(t('cFlags'))}</th><th>${esc(t('cMap'))}</th></tr></thead><tbody>${
+    flagged.slice(0,100).map(r=>`<tr><td>${esc(dLabel(dkey(r.t))+' '+hm(r.t))}</td><td>${esc(r.n)}</td><td class="num"><b>${nf(r.b)}</b></td><td>${flagTags(fl.get(r.id))}</td><td><a href="${mapsUrl(r)}" target="_blank" rel="noopener">↗</a></td></tr>`).join('')}</tbody></table></div>`;
+  $('dq').innerHTML = h;
+}
+function renderRecent(cur, fl){
+  const rs = cur.slice(-100).reverse();
+  $('rec').innerHTML = rs.length ? `<table class="t"><thead><tr><th>${esc(t('cTime'))}</th><th>${esc(t('cEmp'))}</th><th class="num">${esc(t('cBoxes'))}</th><th>${esc(t('cGpsAcc'))}</th><th>${esc(t('cMap'))}</th></tr></thead><tbody>${
+    rs.map(r=>`<tr><td>${esc(dLabel(dkey(r.t))+' '+hm(r.t))}</td><td>${esc(r.n)}</td><td class="num"><b>${nf(r.b)}</b></td><td>${esc(t('accu',{m:r.acc}))} ${flagTags((fl.get(r.id)||[]).filter(f=>f!=='big'&&f!=='dup'))}</td><td><a href="${mapsUrl(r)}" target="_blank" rel="noopener">↗</a></td></tr>`).join('')}</tbody></table>`
+    : `<div class="empty">${esc(t('none'))}</div>`;
+}
+
+/* CSV export */
+$('csvBtn').onclick = () => {
+  if (!data) return;
+  const cur = current(), fl = flagsFor(data.rows.filter(r => inRange(r,range.from,range.to)));
+  const head = ['Date','Time (VN)','Username','Employee Name','Boxes','Latitude','Longitude','GPS Accuracy (m)','GPS Status','Sent Later','Checks','Google Maps','Submission ID'];
+  const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const lines = [head.join(',')].concat(cur.map(r => [dkey(r.t), hm(r.t), r.u, r.n, r.b, r.lat, r.lng, r.acc, r.g, r.off?'Yes':'No',
+    (fl.get(r.id)||[]).map(f=>T.en[FLAG[f].l]).join('; '), mapsUrl(r), r.id].map(q).join(',')));
+  const blob = new Blob(['﻿'+lines.join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `SalesData_${range.from}_to_${range.to}${$('emp').value?'_'+$('emp').value:''}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+};
+
+/* tooltip */
+function tipShow(html, e, pin){
+  const tp = $('tip'); tp.innerHTML = html; tp.style.display = 'block'; tp.classList.toggle('pin', !!pin);
+  const pad = 14, w = tp.offsetWidth, h = tp.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = e.clientY - h - pad;
+  tp.style.left = Math.max(8, x) + 'px'; tp.style.top = Math.max(8, y) + 'px';
+}
+function tipHide(){ const tp=$('tip'); tp.style.display='none'; tp.classList.remove('pin'); }
+document.addEventListener('click', e => { if (!$('tip').contains(e.target)) tipHide(); });
+window.addEventListener('scroll', () => { if (!$('tip').classList.contains('pin')) tipHide(); }, {passive:true});
+
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (data){ const c=current(); renderDaily(c); renderHour(c); } }, 150); });
+
+/* ---------- boot ---------- */
+$('uName').value = S.get('sd_dash_user','');
+const savedPreset = S.get('sd_dash_preset','7d');
+$('preset').value = savedPreset === 'custom' ? '7d' : savedPreset;
+{ const [a,b] = presetRange($('preset').value); setRange(a,b); }
+applyLang();
+if (session && Date.now() < session.expires) { showDash(); load(); } else { session=null; S.del('sd_dash_session'); showLogin(); }
+</script>
+</body>
+</html>
